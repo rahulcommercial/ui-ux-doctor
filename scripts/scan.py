@@ -27,6 +27,8 @@ IGNORE_DIRS = {
     "node_modules", ".git", "dist", "build", ".next", "out", "coverage",
     "__pycache__", ".venv", "venv", "env", ".mypy_cache", ".pytest_cache",
     ".idea", ".vscode", "vendor", "site-packages",
+    ".tmp", "tmp", ".temp", ".cache", ".turbo", ".output", ".svelte-kit",
+    "storybook-static", ".parcel-cache", ".vercel", ".netlify",
 }
 SCAN_EXT = JSX_EXT | PY_EXT
 

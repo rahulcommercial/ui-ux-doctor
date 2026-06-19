@@ -143,6 +143,98 @@ RULES = {
         "why": "A new object every render breaks memoization and can cause extra "
                "re-renders of child components.",
     },
+    # Components: modals, dialogs, sidebars -----------------------------------
+    "modal-no-a11y": {
+        "category": "component",
+        "severity": "warning",
+        "summary": "Modal/dialog element without role=\"dialog\" + aria-modal.",
+        "fix": "Add role=\"dialog\" aria-modal=\"true\" and an aria-label/aria-labelledby. "
+               "Trap focus inside while open and restore it on close.",
+        "why": "Without dialog semantics, screen readers don't announce the modal and "
+               "keyboard focus leaks to the page behind it.",
+    },
+    "dialog-no-label": {
+        "category": "accessibility",
+        "severity": "warning",
+        "summary": "role=\"dialog\" without an accessible name.",
+        "fix": "Add aria-labelledby pointing at the title, or aria-label=\"...\".",
+        "why": "A dialog with no name is announced as just 'dialog' with no context.",
+    },
+    "modal-no-escape": {
+        "category": "component",
+        "severity": "info",
+        "summary": "Modal/dialog in this file with no Escape-to-close handler.",
+        "fix": "Add a keydown listener that closes on key === 'Escape' (and close on "
+               "backdrop click).",
+        "why": "Users expect Esc to dismiss an overlay; without it the modal can trap them.",
+    },
+    "sidebar-no-landmark": {
+        "category": "component",
+        "severity": "info",
+        "summary": "Sidebar/drawer that isn't a <nav>/<aside> landmark.",
+        "fix": "Use <nav> (navigation) or <aside> (complementary), or add an appropriate "
+               "role, so assistive tech and skip-links can find it.",
+        "why": "A sidebar built from plain <div>s is invisible as a landmark to screen readers.",
+    },
+    "nested-interactive": {
+        "category": "accessibility",
+        "severity": "warning",
+        "summary": "Interactive element nested inside another (button in a/button).",
+        "fix": "Don't nest button/anchor inside button/anchor. Use one interactive "
+               "element, or restructure (e.g. an icon button beside a link).",
+        "why": "Nested interactives produce invalid HTML and unpredictable click/focus "
+               "behavior across browsers and screen readers.",
+    },
+    # Forms: inputs, textareas, selects ---------------------------------------
+    "input-no-label": {
+        "category": "forms",
+        "severity": "warning",
+        "summary": "Form control (input/select) with no associated label.",
+        "fix": "Add a <label htmlFor> tied to the control's id, wrap it in a <label>, or "
+               "add aria-label. A placeholder is NOT a label.",
+        "why": "Unlabeled fields are unusable with screen readers and break click-to-focus.",
+    },
+    "textarea-no-label": {
+        "category": "forms",
+        "severity": "warning",
+        "summary": "<textarea> with no associated label.",
+        "fix": "Add a <label htmlFor> tied to its id, wrap it in a <label>, or add aria-label.",
+        "why": "An unlabeled textarea gives screen-reader users no idea what to type.",
+    },
+    "password-no-autocomplete": {
+        "category": "forms",
+        "severity": "info",
+        "summary": "Password input without an autocomplete hint.",
+        "fix": "Add autocomplete=\"current-password\" (login) or \"new-password\" (signup) "
+               "so password managers and browsers behave correctly.",
+        "why": "Missing autocomplete breaks password managers and autofill UX.",
+    },
+    "form-no-onsubmit": {
+        "category": "forms",
+        "severity": "info",
+        "summary": "<form> without an onSubmit handler.",
+        "fix": "Handle onSubmit and call e.preventDefault() so Enter-to-submit works and "
+               "the page doesn't full-reload.",
+        "why": "A form with no onSubmit reloads the page on Enter/submit -- losing app state.",
+    },
+    # Theming: light / dark mode ----------------------------------------------
+    "no-dark-variant": {
+        "category": "theming",
+        "severity": "info",
+        "summary": "Light-mode color utility with no dark: variant.",
+        "fix": "Pair light utilities with dark ones, e.g. bg-white dark:bg-slate-900, "
+               "text-black dark:text-white.",
+        "why": "Hardcoded light backgrounds/text stay light in dark mode -- white flashes "
+               "and unreadable contrast.",
+    },
+    "hardcoded-theme-color": {
+        "category": "theming",
+        "severity": "info",
+        "summary": "Hardcoded black/white color in an inline style.",
+        "fix": "Use theme tokens / CSS variables (or Tailwind classes with dark: variants) "
+               "instead of literal #fff / #000 / white / black.",
+        "why": "Literal colors don't adapt to light/dark themes and drift from the design system.",
+    },
     # FastAPI / Python --------------------------------------------------------
     "cors-wildcard-credentials": {
         "category": "integration",
@@ -214,6 +306,29 @@ _NON_INTERACTIVE = {
     "header", "footer", "aside", "main", "figure", "label", "img",
     "h1", "h2", "h3", "h4", "h5", "h6",
 }
+
+
+def _within_label(clean, pos):
+    """True if char offset `pos` sits inside an unclosed <label> ... </label>."""
+    before = clean[:pos]
+    return before.rfind("<label") > before.rfind("</label>")
+
+
+def _has(attrs, *names):
+    """True if any of the attribute names appears in the tag's attr string."""
+    return any(re.search(r"\b" + re.escape(n) + r"\s*=", attrs) for n in names)
+
+
+def _classname_literal(attrs):
+    """Return the literal className string, or '' if it's an expression/absent."""
+    m = re.search(r"""className\s*=\s*["']([^"']*)["']""", attrs)
+    return m.group(1) if m else ""
+
+
+_LIGHT_UTILS = ("bg-white", "bg-black", "text-white", "text-black",
+                "bg-gray-50", "bg-gray-100", "bg-slate-50", "bg-slate-100")
+_INPUT_SKIP_TYPES = {"hidden", "submit", "button", "reset", "image",
+                     "checkbox", "radio"}
 
 
 def _mk(rule_id, lineno, lines):
@@ -318,6 +433,68 @@ def scan_jsx(text):
         if not re.match(r"\s*,\s*\[", tail):  # no dependency array follows
             findings.append(_mk("useeffect-no-deps", _lineno(starts, m.start()),
                                 raw_lines))
+
+    # --- component / forms / theming (tag-based) ---------------------------- #
+    for m in _OPEN_TAG.finditer(clean):
+        tag = m.group(1)
+        attrs = m.group(2) or ""
+        lineno = _lineno(starts, m.start())
+        cls_lit = _classname_literal(attrs)
+        cls_modalish = re.search(r"\b(modal|dialog)\b", attrs, re.I)
+        is_dialog_role = re.search(r"role\s*=\s*['\"]dialog['\"]", attrs)
+
+        # Modal / dialog semantics
+        if (cls_modalish or is_dialog_role) and tag not in ("img",):
+            if not is_dialog_role and not _has(attrs, "role"):
+                findings.append(_mk("modal-no-a11y", lineno, raw_lines))
+            if is_dialog_role and not _has(attrs, "aria-label", "aria-labelledby"):
+                findings.append(_mk("dialog-no-label", lineno, raw_lines))
+
+        # Sidebar / drawer landmark
+        if re.search(r"\b(sidebar|drawer)\b", attrs, re.I) and \
+                tag not in ("nav", "aside") and not _has(attrs, "role"):
+            findings.append(_mk("sidebar-no-landmark", lineno, raw_lines))
+
+        # Inputs / selects / textareas
+        if tag in ("input", "select", "textarea"):
+            typ = re.search(r"type\s*=\s*['\"]?(\w+)", attrs)
+            typ = typ.group(1).lower() if typ else "text"
+            labelled = _has(attrs, "aria-label", "aria-labelledby", "id") \
+                or _within_label(clean, m.start())
+            if tag in ("input", "select"):
+                if typ not in _INPUT_SKIP_TYPES and not labelled:
+                    findings.append(_mk("input-no-label", lineno, raw_lines))
+                if typ == "password" and not _has(attrs, "autocomplete"):
+                    findings.append(_mk("password-no-autocomplete", lineno, raw_lines))
+            elif tag == "textarea" and not labelled:
+                findings.append(_mk("textarea-no-label", lineno, raw_lines))
+
+        # Form submit handling
+        if tag == "form" and not _has(attrs, "onSubmit"):
+            findings.append(_mk("form-no-onsubmit", lineno, raw_lines))
+
+        # Light/dark theming
+        if cls_lit and any(u in cls_lit for u in _LIGHT_UTILS) and "dark:" not in cls_lit:
+            findings.append(_mk("no-dark-variant", lineno, raw_lines))
+        if re.search(r"(?:color|background|backgroundColor)\s*:\s*['\"]?#?"
+                     r"(?:fff(?:fff)?|000(?:000)?|white|black)\b", attrs, re.I):
+            findings.append(_mk("hardcoded-theme-color", lineno, raw_lines))
+
+    # --- nested interactive elements ---------------------------------------- #
+    for pat in (r"<a\b" + _ATTRS + r">(?:(?!</a>).)*?<(?:button|a)\b",
+                r"<button\b" + _ATTRS + r">(?:(?!</button>).)*?<(?:button|a)\b"):
+        for m in re.finditer(pat, clean, re.DOTALL):
+            findings.append(_mk("nested-interactive", _lineno(starts, m.start()),
+                                raw_lines))
+
+    # --- modal in file but no Escape handler (file-level) ------------------- #
+    if re.search(r"\b(modal|dialog)\b", clean, re.I) or "role=\"dialog\"" in clean:
+        if not re.search(r"['\"]Esc(?:ape)?['\"]|keyCode\s*===?\s*27|which\s*===?\s*27",
+                         clean):
+            mm = re.search(r"\b(modal|dialog)\b", clean, re.I)
+            if mm:
+                findings.append(_mk("modal-no-escape", _lineno(starts, mm.start()),
+                                    raw_lines))
 
     # --- line-based rules --------------------------------------------------- #
     for n, line in enumerate(clean.splitlines(), 1):

@@ -88,6 +88,88 @@ class TestJSXRules(unittest.TestCase):
                          ids(scan_jsx('// see http://localhost:8000\nconst x = 1;')))
 
 
+class TestComponentRules(unittest.TestCase):
+    def test_modal_no_a11y(self):
+        self.assertIn("modal-no-a11y",
+                      ids(scan_jsx('<div className="modal">x</div>')))
+
+    def test_modal_with_role_ok(self):
+        src = '<div className="modal" role="dialog" aria-label="Settings">x</div>'
+        self.assertNotIn("modal-no-a11y", ids(scan_jsx(src)))
+
+    def test_dialog_no_label(self):
+        self.assertIn("dialog-no-label",
+                      ids(scan_jsx('<div role="dialog">x</div>')))
+
+    def test_modal_no_escape(self):
+        self.assertIn("modal-no-escape",
+                      ids(scan_jsx('<div className="modal">x</div>')))
+
+    def test_modal_with_escape_ok(self):
+        src = ('<div className="modal">x</div>\n'
+               "onKeyDown={(e) => e.key === 'Escape' && close()}")
+        self.assertNotIn("modal-no-escape", ids(scan_jsx(src)))
+
+    def test_sidebar_no_landmark(self):
+        self.assertIn("sidebar-no-landmark",
+                      ids(scan_jsx('<div className="sidebar">x</div>')))
+
+    def test_sidebar_aside_ok(self):
+        self.assertNotIn("sidebar-no-landmark",
+                         ids(scan_jsx('<aside className="sidebar">x</aside>')))
+
+    def test_nested_interactive(self):
+        self.assertIn("nested-interactive",
+                      ids(scan_jsx('<a href="/x"><button>Go</button></a>')))
+
+
+class TestFormRules(unittest.TestCase):
+    def test_input_no_label(self):
+        self.assertIn("input-no-label",
+                      ids(scan_jsx('<input type="email" placeholder="Email" />')))
+
+    def test_input_with_aria_label_ok(self):
+        self.assertNotIn("input-no-label",
+                         ids(scan_jsx('<input type="text" aria-label="Name" />')))
+
+    def test_input_wrapped_in_label_ok(self):
+        src = '<label>Email <input type="email" /></label>'
+        self.assertNotIn("input-no-label", ids(scan_jsx(src)))
+
+    def test_hidden_input_not_flagged(self):
+        self.assertNotIn("input-no-label",
+                         ids(scan_jsx('<input type="hidden" value="1" />')))
+
+    def test_textarea_no_label(self):
+        self.assertIn("textarea-no-label",
+                      ids(scan_jsx('<textarea placeholder="Notes" />')))
+
+    def test_password_no_autocomplete(self):
+        self.assertIn("password-no-autocomplete",
+                      ids(scan_jsx('<input type="password" aria-label="pw" />')))
+
+    def test_form_no_onsubmit(self):
+        self.assertIn("form-no-onsubmit", ids(scan_jsx('<form><input id="a"/></form>')))
+
+    def test_form_with_onsubmit_ok(self):
+        self.assertNotIn("form-no-onsubmit",
+                         ids(scan_jsx('<form onSubmit={save}><input id="a"/></form>')))
+
+
+class TestThemingRules(unittest.TestCase):
+    def test_no_dark_variant(self):
+        self.assertIn("no-dark-variant",
+                      ids(scan_jsx('<div className="bg-white text-black">x</div>')))
+
+    def test_dark_variant_present_ok(self):
+        src = '<div className="bg-white dark:bg-slate-900">x</div>'
+        self.assertNotIn("no-dark-variant", ids(scan_jsx(src)))
+
+    def test_hardcoded_theme_color(self):
+        self.assertIn("hardcoded-theme-color",
+                      ids(scan_jsx('<div style={{ background: "#fff" }}>x</div>')))
+
+
 class TestPythonRules(unittest.TestCase):
     def test_cors_wildcard_credentials(self):
         src = 'allow_origins=["*"]\nallow_credentials=True\n'

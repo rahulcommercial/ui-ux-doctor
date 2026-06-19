@@ -79,9 +79,22 @@ python3 scripts/scan.py src --fail-on critical      # CI: block only on critical
 
 ## What it catches
 
-Buttons & interaction · rendering (keys, `0`-leaks, effect loops, dangerous HTML) ·
-accessibility (labels, alt text, tab order) · React↔FastAPI integration (hardcoded
-hosts, CORS wildcard+credentials) · cleanliness (stray logs).
+28 rules across the frontend **and** the backend:
+
+- **Buttons & interaction** — `onClick` on a `<div>`, missing button `type`, interactive
+  nested inside interactive.
+- **Components** — modals/dialogs with no `role`/`aria-modal`/Escape handler, dialogs with
+  no accessible name, sidebars/drawers that aren't landmarks.
+- **Forms** — inputs/textareas/selects with no label, password fields with no
+  `autocomplete`, forms with no `onSubmit`.
+- **Light/dark mode (theming)** — light-only Tailwind classes with no `dark:` variant,
+  hardcoded `#fff`/`#000` inline colors.
+- **Rendering** — missing/`index` keys, `x.length && <JSX>` `0`-leaks, `useEffect` with no
+  deps (re-render/fetch loops), `dangerouslySetInnerHTML`, inline `style={{}}`.
+- **Accessibility** — icon-only buttons with no label, `<img>` with no `alt`, positive
+  `tabIndex`, `autoFocus`.
+- **React ↔ FastAPI integration** — hardcoded hosts, CORS wildcard + credentials.
+- **Cleanliness** — stray `console.log` / `print()`.
 
 Full list with rationale and fixes: [`data/rules.md`](data/rules.md), or
 `python3 scripts/scan.py --list-rules`.
@@ -93,8 +106,8 @@ false-positive; always confirm a finding in context before "fixing" it.
 ## Try it
 
 ```bash
-python3 scripts/scan.py examples/        # buggy sample app: 1 critical + several warnings
-python3 -m unittest discover -s tests    # run the test suite
+python3 scripts/scan.py examples/        # buggy sample app: 1 critical + many warnings
+python3 -m unittest discover -s tests    # 41 passing tests
 ```
 
 ## License

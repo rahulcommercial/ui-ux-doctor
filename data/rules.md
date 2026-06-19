@@ -81,6 +81,74 @@ a debug flag.
 
 ---
 
+## Components — modals, dialogs, sidebars (`.jsx` `.tsx` …)
+
+### `modal-no-a11y` — warning · component
+An element that looks like a modal/dialog (className contains `modal`/`dialog`) but has
+no `role="dialog"`. **Why:** screen readers don't announce it and focus leaks to the page
+behind. **Fix:** `role="dialog" aria-modal="true"` + `aria-labelledby`, trap focus while
+open, restore focus on close.
+
+### `dialog-no-label` — warning · accessibility
+`role="dialog"` with no accessible name. **Why:** announced as just "dialog". **Fix:**
+`aria-labelledby` pointing at the title, or `aria-label`.
+
+### `modal-no-escape` — info · component
+A modal/dialog appears in the file but nothing handles the Escape key. **Why:** users
+expect Esc to dismiss overlays; without it they can feel trapped. **Fix:** a keydown
+listener closing on `key === 'Escape'` (and close on backdrop click). *(Heuristic,
+file-level — won't see an Esc handler that lives in a shared hook.)*
+
+### `sidebar-no-landmark` — info · component
+An element with `sidebar`/`drawer` in its className that isn't a `<nav>`/`<aside>` and has
+no `role`. **Why:** a sidebar made of plain `<div>`s is invisible as a landmark. **Fix:**
+use `<nav>`/`<aside>` or add the matching role.
+
+### `nested-interactive` — warning · accessibility
+An interactive element nested inside another (e.g. `<button>` inside `<a>`). **Why:**
+invalid HTML with unpredictable click/focus behavior. **Fix:** use a single interactive
+element or restructure.
+
+---
+
+## Forms — inputs, textareas, selects (`.jsx` `.tsx` …)
+
+### `input-no-label` — warning · forms
+An `<input>`/`<select>` with no `aria-label`, `aria-labelledby`, `id`, or wrapping
+`<label>`. **Why:** unusable with screen readers; breaks click-to-focus. **Fix:** a
+`<label htmlFor>` tied to the id, a wrapping `<label>`, or `aria-label`. A placeholder is
+**not** a label. *(Inputs wrapped in a `<label>` and `type=hidden/submit/button/...` are
+skipped.)*
+
+### `textarea-no-label` — warning · forms
+A `<textarea>` with no associated label. **Fix:** as above.
+
+### `password-no-autocomplete` — info · forms
+`<input type="password">` without `autocomplete`. **Why:** breaks password managers /
+autofill. **Fix:** `autocomplete="current-password"` (login) or `"new-password"` (signup).
+
+### `form-no-onsubmit` — info · forms
+A `<form>` with no `onSubmit`. **Why:** pressing Enter triggers a full page reload, losing
+app state. **Fix:** handle `onSubmit` and call `e.preventDefault()`.
+
+---
+
+## Theming — light / dark mode (`.jsx` `.tsx` …)
+
+### `no-dark-variant` — info · theming
+A light-mode Tailwind utility (`bg-white`, `text-black`, `bg-gray-50`, …) in a literal
+className with no `dark:` variant. **Why:** stays light in dark mode → white flashes and
+unreadable contrast. **Fix:** pair them, e.g. `bg-white dark:bg-slate-900`,
+`text-black dark:text-white`. *(Only literal className strings are checked, to avoid noise
+on dynamic class expressions.)*
+
+### `hardcoded-theme-color` — info · theming
+A literal black/white color (`#fff`, `#000`, `white`, `black`) in an inline style. **Why:**
+doesn't adapt to themes and drifts from the design system. **Fix:** use theme tokens / CSS
+variables or Tailwind classes with `dark:` variants.
+
+---
+
 ## FastAPI / Python (`.py`)
 
 ### `cors-wildcard-credentials` — critical · integration

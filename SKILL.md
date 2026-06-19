@@ -1,6 +1,6 @@
 ---
 name: ui-ux-doctor
-description: "Zero-dependency UI/UX bug doctor for React + FastAPI apps. Finds and fixes button issues, rendering bugs, accessibility gaps, and React<->FastAPI integration mistakes, then verifies the fix. Pure Python stdlib — no pip, no npm, no network — safe for locked-down / offline / office machines. Actions: find, detect, scan, audit, review, debug, diagnose, fix, repair, test, verify UI/UX bugs. Symptoms: button does nothing, button not clickable, button not keyboard accessible, list re-renders wrong, stray 0 on screen, missing key warning, input loses focus, infinite re-render, fetch loop, blank page, CORS error, data not loading, layout broken, image no alt, screen reader. Stack: React, JSX, TSX, FastAPI, Vite, fetch, CORS. Use after writing or before shipping UI code, or when a UI element misbehaves."
+description: "Zero-dependency UI/UX bug doctor for React + FastAPI apps. Finds and fixes button issues, rendering bugs, accessibility gaps, component problems (modals, dialogs, sidebars/drawers), form/input/textarea issues, light/dark mode (theming) gaps, and React<->FastAPI integration mistakes, then suggests enhancements and verifies the fix. Pure Python stdlib — no pip, no npm, no network — safe for locked-down / offline / office machines. Actions: find, detect, scan, audit, review, debug, diagnose, fix, repair, improve, enhance, test, verify UI/UX. Elements: button, modal, dialog, sidebar, drawer, form, input, textarea, select, navbar. Symptoms: button does nothing, button not clickable / not keyboard accessible, modal has no escape, no focus trap, input has no label, textarea unlabeled, form reloads page on enter, no dark mode, white flash in dark mode, list re-renders wrong, stray 0 on screen, missing key warning, input loses focus, infinite re-render, fetch loop, blank page, CORS error, data not loading, image no alt, screen reader. Topics: accessibility, dark mode, theming, focus management, forms. Stack: React, JSX, TSX, Tailwind, FastAPI, Vite, fetch, CORS. Use after writing or before shipping UI code, or when a UI element misbehaves."
 ---
 
 # UI/UX Doctor — Find, Fix & Verify UI Bugs (React + FastAPI)
@@ -24,7 +24,10 @@ catch the bugs that make a working-looking UI actually broken, then fix and veri
 
 | Category | Examples |
 |----------|----------|
-| **Interaction / buttons** | `onClick` on a `<div>` (not keyboard-accessible), `<button>` with no `type` (submits a form by accident) |
+| **Interaction / buttons** | `onClick` on a `<div>` (not keyboard-accessible), `<button>` with no `type` (submits a form by accident), interactive nested inside interactive (button-in-anchor) |
+| **Components (modals/sidebars)** | modal/dialog with no `role="dialog"` + `aria-modal`, dialog with no accessible name, modal with no Escape-to-close, sidebar/drawer that isn't a `<nav>`/`<aside>` landmark |
+| **Forms (inputs/textareas)** | `<input>`/`<select>`/`<textarea>` with no label, password field with no `autocomplete`, `<form>` with no `onSubmit` (Enter reloads the page) |
+| **Theming (light/dark mode)** | light-only Tailwind class with no `dark:` variant (white flash in dark mode), hardcoded `#fff`/`#000` inline colors that don't adapt |
 | **Rendering** | missing/`index` keys in `.map()`, `x.length && <JSX>` leaking a literal `0`, `useEffect` with no deps array (re-render/fetch loops), `dangerouslySetInnerHTML`, inline `style={{}}` |
 | **Accessibility** | icon-only button with no `aria-label`, `<img>` without `alt`, positive `tabIndex`, `autoFocus` |
 | **React ↔ FastAPI integration** | hardcoded `http://localhost` API URLs, FastAPI CORS `allow_origins=["*"]` + `allow_credentials=True` (browser blocks it → UI silently fails to load) |
@@ -91,6 +94,11 @@ the surrounding code style. Common ones:
 - `length-and-leak` → `{items.length > 0 && <JSX>}`.
 - `icon-button-no-label` → `aria-label="…"` on the button + `aria-hidden` on the icon.
 - `useeffect-no-deps` → add the dependency array (`[]` for mount-only).
+- `modal-no-a11y` → add `role="dialog" aria-modal="true"`, an `aria-labelledby`, focus
+  trap + Esc-to-close.
+- `input-no-label` / `textarea-no-label` → add a `<label htmlFor>` or `aria-label`
+  (placeholder is not a label).
+- `no-dark-variant` → pair light utilities with dark ones (`bg-white dark:bg-slate-900`).
 - `cors-wildcard-credentials` → replace `["*"]` with the explicit frontend origin(s).
 - `hardcoded-localhost` → read the base URL from env/config.
 
@@ -122,6 +130,6 @@ python3 scripts/scan.py src --fail-on warning
 ## Try it
 
 ```bash
-python3 scripts/scan.py examples/        # 1 critical, several warnings/infos
-python3 -m unittest discover -s tests    # 22 passing tests
+python3 scripts/scan.py examples/        # 1 critical, plus component/form/theming warnings
+python3 -m unittest discover -s tests    # 41 passing tests
 ```
