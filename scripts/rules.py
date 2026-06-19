@@ -263,6 +263,89 @@ RULES = {
 }
 
 # --------------------------------------------------------------------------- #
+# Runtime rules (rendered-DOM scan via a real browser; see scan_live.py)
+# --------------------------------------------------------------------------- #
+
+RUNTIME_RULES = {
+    "runtime-console-error": {
+        "category": "runtime", "severity": "warning",
+        "summary": "Console error / uncaught exception at runtime.",
+        "fix": "Open the browser console and fix the underlying error -- it often "
+               "points straight at the broken component.",
+    },
+    "runtime-react-key-warning": {
+        "category": "rendering", "severity": "warning",
+        "summary": "React key warning in the console.",
+        "fix": "Add a stable, unique key={item.id} to the list items React named.",
+    },
+    "runtime-network-error": {
+        "category": "integration", "severity": "warning",
+        "summary": "A request failed (HTTP 4xx/5xx) while the page loaded.",
+        "fix": "Check the failing URL/route, the API base URL, auth, and CORS. A "
+               "failed data call usually means the UI renders empty/broken.",
+    },
+    "runtime-broken-image": {
+        "category": "rendering", "severity": "warning",
+        "summary": "Image rendered but failed to load (naturalWidth 0).",
+        "fix": "Fix the src/path (or add an onError fallback). The user sees a broken "
+               "image icon or empty box.",
+    },
+    "runtime-img-no-alt": {
+        "category": "accessibility", "severity": "warning",
+        "summary": "Rendered <img> has no alt attribute.",
+        "fix": "Add alt=\"description\" (or alt=\"\" if decorative).",
+    },
+    "runtime-button-no-name": {
+        "category": "accessibility", "severity": "warning",
+        "summary": "Visible button/link with no accessible name.",
+        "fix": "Give it visible text, or aria-label / aria-labelledby. Icon-only "
+               "controls need an explicit label.",
+    },
+    "runtime-input-no-label": {
+        "category": "forms", "severity": "warning",
+        "summary": "Visible form control with no associated label.",
+        "fix": "Associate a <label for> with the control's id, wrap it in a <label>, "
+               "or add aria-label. (Resolved against the real DOM, so this is reliable.)",
+    },
+    "runtime-low-contrast": {
+        "category": "accessibility", "severity": "warning",
+        "summary": "Text color contrast below WCAG AA.",
+        "fix": "Raise contrast to >= 4.5:1 (>= 3:1 for large/bold text). Computed from "
+               "the actual rendered colors.",
+    },
+    "runtime-horizontal-overflow": {
+        "category": "layout", "severity": "warning",
+        "summary": "Page content is wider than the viewport (horizontal scroll).",
+        "fix": "Find the overflowing element; remove fixed widths, add max-width:100% / "
+               "overflow handling, or fix negative margins.",
+    },
+    "runtime-zero-size": {
+        "category": "rendering", "severity": "warning",
+        "summary": "Interactive element rendered with zero width/height.",
+        "fix": "A button/link collapsed to 0px is invisible/unclickable -- usually a CSS "
+               "or layout bug. Give it content/size or fix the container.",
+    },
+    "runtime-tiny-target": {
+        "category": "accessibility", "severity": "info",
+        "summary": "Interactive element smaller than the recommended touch target.",
+        "fix": "Make the hit area >= 24px (ideally 44px) so it's easy to tap.",
+    },
+    "runtime-dialog-no-aria": {
+        "category": "component", "severity": "warning",
+        "summary": "Visible modal/dialog without proper dialog semantics.",
+        "fix": "Add role=\"dialog\" aria-modal=\"true\" and an accessible name; trap focus "
+               "while open.",
+    },
+    "runtime-duplicate-id": {
+        "category": "accessibility", "severity": "warning",
+        "summary": "Duplicate id attribute in the rendered DOM.",
+        "fix": "Make ids unique -- duplicates break label[for], getElementById, "
+               "aria references and scroll anchors.",
+    },
+}
+
+
+# --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
 

@@ -40,9 +40,41 @@ into Claude Code as a skill) to catch the most common, highest-impact UI bugs ac
 It's a **QA / debugging** tool, not a design generator — it complements design-system
 skills rather than replacing them.
 
+## Two modes: static + runtime
+
+| Mode | Command | Scans | Needs |
+|------|---------|-------|-------|
+| **Static** | `python3 scripts/scan.py PATH` | source files (`.jsx/.tsx/.js/.ts/.py`) | Python only |
+| **Runtime (live)** | `python3 scripts/scan_live.py URL` | the **rendered DOM** of a *running* app | Python + a Chrome/Edge/Chromium already installed |
+
+The **runtime** scanner drives the browser already on the machine over the Chrome
+DevTools Protocol — still **pure stdlib, no pip/npm, no install, no network egress** (it
+hand-rolls a tiny WebSocket + CDP client). It opens your running localhost app, lets
+React render, and scans the *real* DOM, so it catches things static analysis can't:
+
+- broken images, zero-size / collapsed buttons, content overflowing the viewport
+- **real** color-contrast failures (computed from rendered colors)
+- buttons/links with no accessible name; inputs with no real label association
+- modals/dialogs missing dialog semantics
+- React's own console warnings (e.g. missing `key`), uncaught exceptions
+- failed API calls (HTTP 4xx/5xx) during load
+
+```bash
+# start your app first (npm run dev / uvicorn ...), then:
+python3 scripts/scan_live.py http://localhost:5173
+python3 scripts/scan_live.py http://localhost:8000 --click "#open-settings"  # open a modal & re-scan
+python3 scripts/scan_live.py http://localhost:5173 --headed --wait 2000      # show the window
+python3 scripts/scan_live.py http://localhost:5173 --attach 9222             # attach to your own browser
+```
+
+Browser discovery is automatic (Chrome/Edge/Chromium in the usual OS paths). Override
+with `UXD_BROWSER=/path/to/browser`, or launch the browser yourself with
+`--remote-debugging-port=9222` and use `--attach 9222`. Edge ships with Windows, so an
+office machine almost always has a usable browser.
+
 ## Install
 
-There's nothing to install. You need Python 3.8+.
+There's nothing to install. You need Python 3.8+ (and, for live mode, any Chromium-family browser).
 
 ```bash
 git clone https://github.com/rahulcommercial/ui-ux-doctor.git
@@ -106,8 +138,13 @@ false-positive; always confirm a finding in context before "fixing" it.
 ## Try it
 
 ```bash
+# static
 python3 scripts/scan.py examples/        # buggy sample app: 1 critical + many warnings
-python3 -m unittest discover -s tests    # 41 passing tests
+python3 -m unittest discover -s tests    # passing test suite (live test auto-skips w/o a browser)
+
+# runtime
+python3 -m http.server 8911 --directory examples &
+python3 scripts/scan_live.py http://localhost:8911/live_demo.html
 ```
 
 ## License

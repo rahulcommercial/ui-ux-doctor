@@ -46,6 +46,44 @@ python3 --version
 
 Nothing to install.
 
+## Two modes
+
+| Mode | Command | Scans | Needs |
+|------|---------|-------|-------|
+| **Static** | `scripts/scan.py PATH` | source files (`.jsx/.tsx/.py`) | Python only |
+| **Runtime (live)** | `scripts/scan_live.py URL` | the **rendered DOM** of a running app — real buttons/modals/contrast/console/network | Python + a Chrome/Edge/Chromium already installed |
+
+Use **static** while writing code; use **runtime** to confirm the running app
+actually renders and behaves. They catch different bugs — run both.
+
+## Runtime (live) scanning
+
+Drives the browser already on the machine over the DevTools Protocol (pure stdlib,
+no pip/npm/network) to open a running localhost URL, let React render, and scan the
+real DOM. It catches what static analysis can't: broken images, zero-size/collapsed
+buttons, content overflowing the viewport, **real computed color-contrast** failures,
+buttons/inputs with no real accessible name/label, modals missing dialog semantics,
+React's own console warnings (e.g. missing key), uncaught exceptions, and failed API
+calls (HTTP 4xx/5xx) during load.
+
+```bash
+# 1. start the app (its own dev server), e.g.:  npm run dev   /   uvicorn main:app
+# 2. scan the running URL:
+python3 scripts/scan_live.py http://localhost:5173
+python3 scripts/scan_live.py http://localhost:8000 --click "#open-settings"  # open a modal, re-scan
+python3 scripts/scan_live.py http://localhost:5173 --headed --wait 2000      # watch it, longer settle
+python3 scripts/scan_live.py http://localhost:5173 --attach 9222             # attach to a browser you launched
+python3 scripts/scan_live.py --list-rules
+```
+
+Browser discovery: it auto-finds Chrome/Edge/Chromium in the usual OS locations. If it
+can't, set `UXD_BROWSER=/path/to/browser`, or launch the browser yourself with
+`--remote-debugging-port=9222` and pass `--attach 9222`. Edge ships with Windows, so an
+office machine almost always has one.
+
+For a React **SPA**, point it at the running dev-server URL (not a built file) so JS has
+actually rendered. `--wait` controls the settle time for hydration/XHR.
+
 ## Workflow
 
 ### Step 1 — Scan (find)
@@ -112,13 +150,16 @@ the surrounding code style. Common ones:
    ```bash
    python3 -m unittest discover -s tests
    ```
-3. **Exercise the actual UI** to confirm the bug is really fixed. Use whatever this
-   environment provides, in order of preference:
-   - a browser/preview tool if available (load the page, click the button, check the
-     console for errors, resize for responsive);
-   - otherwise a **manual keyboard+screen-reader pass**: Tab to the control, press
-     Enter/Space, confirm it fires and is announced.
-   Never report "fixed" from a green scan alone — confirm the behavior.
+3. **Exercise the actual running UI** to confirm the bug is really fixed:
+   ```bash
+   python3 scripts/scan_live.py http://localhost:<port>
+   ```
+   This loads the real page in a browser and reports rendered-DOM / console / network
+   issues. For bugs behind an interaction (a modal, a dropdown), drive it with
+   `--click "<selector>"` and re-scan. If no browser is available, fall back to a
+   **manual keyboard+screen-reader pass**: Tab to the control, press Enter/Space,
+   confirm it fires and is announced.
+   Never report "fixed" from a green static scan alone — confirm the behavior at runtime.
 
 ## CI / pre-commit use
 

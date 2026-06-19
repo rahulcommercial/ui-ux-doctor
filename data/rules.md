@@ -168,3 +168,67 @@ Hardcoded `http://localhost` / `127.0.0.1`. **Fix:** read from `os.environ`/conf
 ### `print-debug` — info · cleanliness
 `print()` in server code. **Why:** bypasses log levels/handlers, clutters output.
 **Fix:** use `logging`.
+
+---
+
+## Runtime rules — rendered DOM (`scan_live.py` against a running app)
+
+These run in a real browser via the DevTools Protocol, so they see the *rendered* page,
+computed styles, the console and the network — not source code. List them with
+`python3 scripts/scan_live.py --list-rules`.
+
+### `runtime-console-error` — warning · runtime
+A `console.error` / uncaught exception / error log fired while the page loaded. **Fix:**
+open the console and fix the underlying error — it usually points at the broken component.
+
+### `runtime-react-key-warning` — warning · rendering
+React logged a missing-/duplicate-key warning at runtime. **Fix:** add a stable unique
+`key={item.id}` to the named list. *(This is the runtime confirmation of the static
+`missing-key` heuristic.)*
+
+### `runtime-network-error` — warning · integration
+A request returned HTTP 4xx/5xx (or failed) during load. **Why:** a failed data call
+usually means the UI renders empty/broken. **Fix:** check the URL/route, API base, auth,
+CORS.
+
+### `runtime-broken-image` — warning · rendering
+An `<img>` rendered but failed to load (`naturalWidth === 0`). **Fix:** fix the src/path
+or add an `onError` fallback.
+
+### `runtime-img-no-alt` — warning · accessibility
+A rendered `<img>` has no `alt`. **Fix:** `alt="…"` (or `alt=""` if decorative).
+
+### `runtime-button-no-name` — warning · accessibility
+A visible `button`/`a`/`[role=button]` has no accessible name (no text, aria-label,
+labelledby, title, or img alt). **Fix:** give it text or `aria-label`.
+
+### `runtime-input-no-label` — warning · forms
+A visible input/select/textarea has no associated label — resolved against the **real**
+DOM (`label[for]`, wrapping `<label>`, `aria-label`/`labelledby`, `title`), so it's
+reliable, not a guess. **Fix:** associate a real label.
+
+### `runtime-low-contrast` — warning · accessibility
+Text contrast below WCAG AA, computed from the actual rendered colors (walks ancestors
+for the effective background). **Fix:** raise to ≥ 4.5:1 (≥ 3:1 for large/bold text).
+
+### `runtime-horizontal-overflow` — warning · layout
+The page is wider than the viewport (horizontal scrollbar). Reports the offending
+elements. **Fix:** remove fixed widths, add `max-width:100%`/overflow handling, fix
+negative margins.
+
+### `runtime-zero-size` — warning · rendering
+An interactive element rendered at 0×0 (collapsed) while still in layout. **Why:** an
+invisible/unclickable button is usually a CSS/layout bug. **Fix:** give it size/content
+or fix the container.
+
+### `runtime-tiny-target` — info · accessibility
+A visible interactive element smaller than the recommended touch target. **Fix:** make
+the hit area ≥ 24px (ideally 44px).
+
+### `runtime-dialog-no-aria` — warning · component
+A **visible** modal/dialog without proper dialog semantics (`role="dialog"`,
+`aria-modal="true"`, an accessible name). **Fix:** add them and trap focus while open.
+
+### `runtime-duplicate-id` — warning · accessibility
+The same `id` appears more than once in the rendered DOM. **Why:** breaks `label[for]`,
+`getElementById`, aria references and scroll anchors. **Fix:** make ids unique.

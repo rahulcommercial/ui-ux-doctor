@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ui-ux-doctor live demo (intentionally buggy)</title>
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  .low { color: #bbb; background: #fff; }                 /* low contrast */
+  .wide { width: 2000px; height: 10px; background: #eee; } /* horizontal overflow */
+  .tiny { width: 10px; height: 10px; }                    /* tiny / zero target */
+  .modal { position: fixed; top: 20px; left: 20px; width: 200px;
+           height: 100px; background: #fff; border: 1px solid #000; }
+  .icon { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+  <!--
+    Serve this and scan it:
+      python3 -m http.server 8911 --directory examples &
+      python3 scripts/scan_live.py http://localhost:8911/live_demo.html
+  -->
+  <h1 class="low">Welcome</h1>
+
+  <img src="/does-not-exist.png">                <!-- broken image + no alt -->
+
+  <button><svg class="icon" viewBox="0 0 24 24"></svg></button> <!-- no accessible name -->
+  <button class="tiny"></button>                 <!-- tiny target + no name -->
+
+  <form>
+    <input type="email" placeholder="Email">     <!-- no label -->
+    <textarea placeholder="Notes"></textarea>     <!-- no label -->
+  </form>
+
+  <div id="dup">A</div>
+  <div id="dup">B</div>                           <!-- duplicate id -->
+
+  <div class="modal">Settings (no role/aria)</div> <!-- modal without dialog semantics -->
+
+  <div class="wide"></div>                         <!-- horizontal overflow -->
+
+  <script>
+    console.error("Boom: something broke during render");  // console error
+    fetch("/api/missing").catch(() => {});                 // 404 network error
+  </script>
+</body>
+</html>
